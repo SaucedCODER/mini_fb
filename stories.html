@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Stories</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome CDN -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+  
+  <style>
+    .story-card {
+      width: 100%;
+      margin: 15px 0;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      background-color: #f9f9f9;
+    }
+    .story-card img {
+      width: 100%;
+      height: auto;
+      border-radius: 8px;
+    }
+    .caption {
+      margin-top: 10px;
+      font-size: 14px;
+      color: #555;
+    }
+    .username {
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    .like-button {
+      background-color: #ff4d4d;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      cursor: pointer;
+      font-size: 14px;
+      border-radius: 5px;
+    }
+    .like-button.liked {
+      background-color: #4CAF50;
+    }
+    .like-count {
+      font-size: 16px;
+      color: #333;
+      margin-left: 5px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container mt-5">
+    <!-- Back Button -->
+    <div class="text-left mb-3">
+      <a href="welcome.html" class="btn btn-secondary">Back to Welcome Page</a>
+    </div>
+
+    <h1 class="text-center">User Stories</h1>
+    <hr>
+    <div id="storiesContainer" class="row  justify-content-around  my-4">
+      <!-- Stories will be dynamically loaded here -->
+    </div>
+
+    <button class="btn btn-danger btn-block" onclick="logout()">Log Out</button>
+  </div>
+
+  <script>
+    // Retrieve the logged-in user data from LocalStorage
+    const loggedInUser = JSON.parse(localStorage.getItem("loggedInUser"));
+
+    if (!loggedInUser) {
+      alert("You must log in first.");
+      window.location.href = "index.html"; // Redirect to login if no user
+    }
+
+    // Load all user stories (galleries)
+    function loadStories() {
+      const storiesContainer = document.getElementById("storiesContainer");
+      const users = JSON.parse(localStorage.getItem("users")) || [];
+      const loggedInUserEmail = loggedInUser.email;
+
+      // Clear the stories container
+      storiesContainer.innerHTML = '';
+      const stories = []
+      // Iterate over all users and display their gallery
+      users.forEach(user => {
+        if (user.email !== loggedInUserEmail) {
+          const userGallery = JSON.parse(localStorage.getItem(`gallery_${user.email}`)) || [];
+          if (userGallery.length > 0) {
+            let ii = userGallery.map((item, index) => {
+              return {user,item,index}
+            });
+            stories.push(ii)
+          }
+        }
+      });
+      let combinedStories = [].concat.apply([], stories);
+
+      if (combinedStories.length > 0) {
+            // Create a story card for each user
+         
+
+            let storyImages = '';
+            combinedStories.forEach((e, index) => {
+
+              const storyCard = document.createElement('div');
+              storyCard.classList.add('col-md-5');
+              storyCard.classList.add('story-card');
+              storyImages = `
+                <img src="${e.item.imageData}" alt="Story Image">
+                <p class="caption">${e.item.caption}</p>
+                <div class="d-flex justify-content-between">
+                  <button class="like-button" onclick="likeStory('${e.user.email}', ${e.index})">
+                    Like <span class="like-count">${e.item.likes || 0}</span>
+                  </button>
+                </div>
+              `;
+
+            // Gender icon conditionally rendered
+            let genderIcon = '';
+            switch (e.user.gender) {
+            case 'Male':
+                genderIcon = '👨'; // Male emoji
+                break;
+            case 'Female':
+                genderIcon = '👩'; // Female emoji
+                break;
+            case 'Other':
+                genderIcon = '🫱🫲'; // Gender-neutral emoji (You can choose others)
+                break;
+            default:
+                genderIcon = '❓'; // Unknown gender emoji
+            }
+
+            storyCard.innerHTML = `
+            <div class="username">${e.user.name} ${genderIcon}</div>
+            ${storyImages}
+            `;
+             
+            storiesContainer.appendChild(storyCard);
+            });
+
+      
+
+            
+        }
+    }
+
+    // Call loadStories on page load
+    loadStories();
+
+    // Like a story
+    function likeStory(userEmail, storyIndex) {
+      // Get the user's gallery
+      const userGallery = JSON.parse(localStorage.getItem(`gallery_${userEmail}`)) || [];
+      
+      if (!userGallery[storyIndex]) {
+        return; // Story doesn't exist
+      }
+
+      const story = userGallery[storyIndex];
+
+      // Track which stories the logged-in user has liked
+      let likedStories = JSON.parse(localStorage.getItem(`liked_${loggedInUser.email}`)) || [];
+
+      // Check if the current user has already liked this story
+      if (likedStories.includes(`${userEmail}_${storyIndex}`)) {
+        alert("You already liked this moment.");
+        return;
+      }
+
+      // Increment the like count
+      story.likes = (story.likes || 0) + 1;
+
+      // Save the updated gallery back to LocalStorage
+      localStorage.setItem(`gallery_${userEmail}`, JSON.stringify(userGallery));
+
+      // Add the story to the liked stories list
+      likedStories.push(`${userEmail}_${storyIndex}`);
+      localStorage.setItem(`liked_${loggedInUser.email}`, JSON.stringify(likedStories));
+
+      // Reload the stories to update like count
+      loadStories();
+    }
+
+    // Log out function
+    function logout() {
+      localStorage.removeItem("loggedInUser");
+      alert("You have logged out.");
+      window.location.href = "index.html"; // Redirect to login page
+    }
+  </script>
+
+  <!-- Bootstrap JS -->
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.0.6/dist/umd/popper.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>

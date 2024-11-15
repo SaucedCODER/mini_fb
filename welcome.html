@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    .gallery img {
+      width: 100%;
+      height: auto;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    .gallery-item {
+      margin: 15px 0;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      position: relative;
+    }
+    .gallery-item .caption {
+      font-size: 14px;
+      color: #555;
+    }
+    .gallery-item .button-container {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+    }
+    #imagePreview {
+      width: 100%;
+      height: 300px;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      margin-top: 15px;
+      display: none;
+    }
+
+    .button-container {
+      display: flex;
+      justify-content: flex-start;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    
+    .button-container button {
+      margin-right: 10px; /* Adds space between the buttons */
+    }
+
+    .like-button {
+      margin-top: 10px;
+    }
+
+    .like-count {
+      margin-left: 10px;
+      font-size: 14px;
+    }
+
+    .disabled {
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container mt-5">
+    <h1 class="text-center">Welcome, <span id="userName">User</span>!</h1>
+    <hr>
+    <p class="text-center">You are now logged in.</p>
+
+    <!-- Button to go to the Story page -->
+    <div class="text-center">
+      <a href="stories.html" class="btn btn-info btn-lg">View User Stories</a>
+    </div>
+
+    <!-- Gallery Upload Section -->
+    <h3 class="mt-4">Upload Your Moment</h3>
+    <form id="uploadForm">
+      <div class="form-group">
+        <label for="imageUpload">Upload Image</label>
+        <input type="file" class="form-control" id="imageUpload" accept="image/*" required>
+      </div>
+      <div class="form-group">
+        <label for="caption">Caption</label>
+        <input type="text" class="form-control" id="caption" placeholder="Enter a caption for your image" required>
+      </div>
+      <!-- Image Preview -->
+      <img id="imagePreview" src="" alt="Image Preview">
+      <button type="submit" class="btn btn-primary">Upload Moment</button>
+    </form>
+
+    <hr>
+
+    <h3>Your Gallery</h3>
+    <div id="gallery" class="gallery row justify-content-around  my-4"></div>
+
+    <button class="btn btn-danger btn-block" onclick="logout()">Log Out</button>
+  </div>
+
+  <script>
+    // Retrieve the logged-in user data from LocalStorage
+    const loggedInUser = JSON.parse(localStorage.getItem("loggedInUser"));
+
+    if (loggedInUser) {
+      document.getElementById("userName").textContent = loggedInUser.name;
+    } else {
+      alert("You must log in first.");
+      window.location.href = "index.html"; // Redirect to login if no user
+    }
+
+    // Load the user's gallery (if any)
+    function loadGallery() {
+      const galleryContainer = document.getElementById("gallery");
+      const userGallery = JSON.parse(localStorage.getItem(`gallery_${loggedInUser.email}`)) || [];
+
+      // Clear current gallery
+      galleryContainer.innerHTML = '';
+
+      userGallery.forEach((item, index) => {
+        const galleryItem = document.createElement('div');
+        galleryItem.classList.add('col-md-5'); // Use Bootstrap column class for 2 columns
+        galleryItem.classList.add('gallery-item');
+
+        // Check if the moment belongs to the logged-in user
+        const isOwnMoment = item.email === loggedInUser.email;
+
+        galleryItem.innerHTML = `
+          <img src="${item.imageData}" alt="User Moment">
+          <p class="caption">${item.caption}</p>
+          <div class="button-container">
+            <button class="btn btn-warning btn-sm" onclick="editStory(${index})">Edit</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteStory(${index})">Delete</button>
+          </div>
+          <div class="like-container">
+            <button class="btn btn-success btn-sm like-button disabled>Like</button>
+            <span class="like-count">${item.likes || 0} likes</span>
+          </div>
+        `;
+        galleryContainer.appendChild(galleryItem);
+      });
+    }
+
+    // Call loadGallery on page load
+    loadGallery();
+
+    // Handle image upload form submission
+    document.getElementById("uploadForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+
+      const imageUpload = document.getElementById("imageUpload").files[0];
+      const caption = document.getElementById("caption").value;
+
+      if (!imageUpload || !caption) {
+        alert("Both image and caption are required!");
+        return;
+      }
+
+      // Convert image file to base64 string (for LocalStorage storage)
+      const reader = new FileReader();
+      reader.onloadend = function () {
+        const imageData = reader.result;
+
+        // Load existing gallery or initialize an empty array
+        let userGallery = JSON.parse(localStorage.getItem(`gallery_${loggedInUser.email}`)) || [];
+
+        // Add the new image and caption to the gallery
+        userGallery.push({ imageData, caption, likes: 0, email: loggedInUser.email });
+
+        // Save updated gallery to LocalStorage
+        localStorage.setItem(`gallery_${loggedInUser.email}`, JSON.stringify(userGallery));
+
+        // Reload the gallery to reflect the new image
+        loadGallery();
+
+        // Clear the form and hide the image preview
+        document.getElementById("uploadForm").reset();
+        document.getElementById("imagePreview").style.display = 'none';
+      };
+
+      reader.readAsDataURL(imageUpload);
+    });
+
+    // Handle image file input change (preview the selected image)
+    document.getElementById("imageUpload").addEventListener("change", function (e) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+
+      reader.onloadend = function () {
+        const previewImage = document.getElementById("imagePreview");
+        previewImage.src = reader.result;
+        previewImage.style.display = 'block'; // Show the preview
+      };
+
+      if (file) {
+        reader.readAsDataURL(file); // Read the file and trigger preview
+      }
+    });
+
+
+
+
+    // Edit a story's caption
+    function editStory(index) {
+      const userGallery = JSON.parse(localStorage.getItem(`gallery_${loggedInUser.email}`)) || [];
+
+      const newCaption = prompt("Edit caption:", userGallery[index].caption);
+      if (newCaption !== null && newCaption !== "") {
+        // Update the caption
+        userGallery[index].caption = newCaption;
+
+        // Save the updated gallery to LocalStorage
+        localStorage.setItem(`gallery_${loggedInUser.email}`, JSON.stringify(userGallery));
+
+        // Reload the gallery
+        loadGallery();
+      }
+    }
+
+    // Delete a story
+    function deleteStory(index) {
+      const userGallery = JSON.parse(localStorage.getItem(`gallery_${loggedInUser.email}`)) || [];
+
+      // Remove the story from the gallery
+      userGallery.splice(index, 1);
+
+      // Save the updated gallery to LocalStorage
+      localStorage.setItem(`gallery_${loggedInUser.email}`, JSON.stringify(userGallery));
+
+      // Reload the gallery
+      loadGallery();
+    }
+
+    // Log out function
+    function logout() {
+      localStorage.removeItem("loggedInUser");
+      alert("You have logged out.");
+      window.location.href = "index.html"; // Redirect to login page
+    }
+  </script>
+
+  <!-- Bootstrap JS -->
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.0.6/dist/umd/popper.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>
